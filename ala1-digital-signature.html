@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALA 1 – Digital Signature Verifier</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060a12;
+    --surface: #0d1623;
+    --surface2: #111d30;
+    --border: #1a2d4a;
+    --accent: #00e5ff;
+    --accent-dim: rgba(0,229,255,0.08);
+    --accent-mid: rgba(0,229,255,0.2);
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --green: #10b981;
+    --red: #f43f5e;
+    --code-bg: #07111e;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .orb { position: fixed; border-radius: 50%; filter: blur(100px); opacity: 0.1; pointer-events: none; z-index: 0; }
+  .orb1 { width: 500px; height: 500px; background: #00e5ff; top: -150px; right: -100px; }
+  .orb2 { width: 300px; height: 300px; background: #7c3aed; bottom: 100px; left: -80px; }
+
+  .container { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* NAV */
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 0 0;
+    animation: fadeDown 0.6s ease both;
+  }
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); text-decoration: none; padding: 8px 16px;
+    border: 1px solid var(--border); border-radius: 100px;
+    transition: all 0.3s;
+  }
+  .back-btn:hover { color: var(--accent); border-color: var(--accent-mid); background: var(--accent-dim); }
+  .breadcrumb { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+  .breadcrumb span { color: var(--accent); }
+
+  /* HERO */
+  .hero {
+    padding: 60px 0 50px;
+    animation: fadeUp 0.8s 0.1s ease both;
+  }
+  .ala-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent); border: 1px solid rgba(0,229,255,0.3); padding: 6px 16px;
+    border-radius: 100px; margin-bottom: 24px; background: var(--accent-dim);
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+
+  h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin-bottom: 16px; }
+  .accent-text { color: var(--accent); }
+  .hero-desc { font-size: 1rem; color: var(--muted); line-height: 1.8; max-width: 640px; margin-bottom: 32px; }
+
+  .objective-box {
+    background: var(--accent-dim);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 12px 12px 0;
+    padding: 20px 24px;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    color: var(--text);
+    margin-bottom: 50px;
+  }
+  .objective-box strong { color: var(--accent); font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 8px; }
+
+  /* SECTIONS */
+  .section { margin-bottom: 48px; animation: fadeUp 0.8s ease both; }
+  .section:nth-child(2) { animation-delay: 0.15s; }
+  .section:nth-child(3) { animation-delay: 0.25s; }
+  .section:nth-child(4) { animation-delay: 0.35s; }
+  .section:nth-child(5) { animation-delay: 0.45s; }
+
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+  }
+  .section-num {
+    font-family: 'Space Mono', monospace; font-size: 10px; color: var(--accent);
+    border: 1px solid var(--accent-mid); padding: 4px 10px; border-radius: 100px;
+    background: var(--accent-dim);
+  }
+  .section-title { font-size: 1.15rem; font-weight: 700; }
+
+  /* Code block */
+  .code-wrap {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .code-dots { display: flex; gap: 6px; }
+  .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .cd1 { background: #f43f5e; } .cd2 { background: #f59e0b; } .cd3 { background: var(--green); }
+  .code-lang { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  .copy-btn {
+    font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 1px;
+    color: var(--muted); cursor: pointer; padding: 4px 12px;
+    border: 1px solid var(--border); border-radius: 100px; background: transparent;
+    transition: all 0.3s; text-transform: uppercase;
+  }
+  .copy-btn:hover { color: var(--accent); border-color: var(--accent-mid); }
+
+  pre {
+    padding: 28px 28px;
+    overflow-x: auto;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.9;
+    color: #94a3b8;
+  }
+  .kw { color: #a78bfa; } /* keyword */
+  .fn { color: #00e5ff; } /* function */
+  .st { color: #6ee7b7; } /* string */
+  .cm { color: #475569; font-style: italic; } /* comment */
+  .nu { color: #fb923c; } /* number */
+  .cl { color: #f9a8d4; } /* class */
+  .imp { color: #fbbf24; } /* import */
+
+  /* Flow diagram */
+  .flow {
+    display: flex; align-items: center; gap: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 24px; overflow-x: auto; flex-wrap: wrap; gap: 8px;
+  }
+  .flow-step {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    min-width: 110px; text-align: center;
+  }
+  .flow-icon {
+    width: 56px; height: 56px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    border: 1px solid var(--accent-mid);
+    background: var(--accent-dim);
+    position: relative;
+    animation: glowPulse 3s ease-in-out infinite;
+  }
+  @keyframes glowPulse {
+    0%,100% { box-shadow: 0 0 0 rgba(0,229,255,0); }
+    50% { box-shadow: 0 0 20px rgba(0,229,255,0.2); }
+  }
+  .flow-label { font-size: 0.72rem; color: var(--muted); font-family: 'Space Mono', monospace; }
+  .flow-arrow { color: var(--accent); font-size: 1.2rem; opacity: 0.5; flex-shrink: 0; }
+
+  /* Info cards */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width: 600px) { .info-grid { grid-template-columns: 1fr; } }
+  .info-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 22px;
+    transition: border-color 0.3s;
+  }
+  .info-card:hover { border-color: rgba(0,229,255,0.25); }
+  .info-card h4 { font-size: 0.85rem; font-weight: 700; color: var(--accent); margin-bottom: 10px; font-family: 'Space Mono', monospace; letter-spacing: 0.5px; }
+  .info-card p, .info-card li { font-size: 0.83rem; color: var(--muted); line-height: 1.7; }
+  .info-card ul { padding-left: 16px; }
+  .info-card li { margin-bottom: 4px; }
+
+  /* Output box */
+  .output-box {
+    background: #03080f;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.8;
+    color: var(--green);
+  }
+  .output-box .out-label { color: var(--muted); }
+  .output-box .out-success { color: var(--green); }
+  .output-box .out-key { color: var(--accent); }
+  .output-box .out-sig { color: #a78bfa; word-break: break-all; }
+
+  /* Analysis */
+  .analysis-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media(max-width:700px) { .analysis-grid { grid-template-columns: 1fr; } }
+  .ana-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px 18px; text-align: center;
+  }
+  .ana-card .ana-icon { font-size: 2rem; margin-bottom: 12px; display: block; }
+  .ana-card h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
+  .ana-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="container">
+  <nav>
+    <a class="back-btn" href="index.html">← Back</a>
+    <span class="breadcrumb">Dashboard / <span>ALA 1</span></span>
+  </nav>
+
+  <div class="hero">
+    <div class="ala-badge"><span class="dot"></span> ALA 1 · Digital Signatures</div>
+    <h1>Digital Signature<br><span class="accent-text">Verifier System</span></h1>
+    <p class="hero-desc">Implement a public-key cryptography system in Python to understand how digital signatures guarantee message authenticity, non-repudiation, and data integrity.</p>
+    <div class="objective-box">
+      <strong>🎯 Learning Objective</strong>
+      Generate an RSA key pair, sign a message using the private key with SHA-256 hashing, and verify the digital signature using the public key. Demonstrate how asymmetric cryptography ensures that only the key holder can produce a valid signature, while anyone with the public key can verify it.
+    </div>
+  </div>
+
+  <!-- FLOW -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <span class="section-title">How Digital Signatures Work</span>
+    </div>
+    <div class="flow">
+      <div class="flow-step"><div class="flow-icon">📝</div><div class="flow-label">Message</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-icon">🔢</div><div class="flow-label">SHA-256 Hash</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-icon">🔑</div><div class="flow-label">Private Key Sign</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-icon">📦</div><div class="flow-label">Message + Sig</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-icon">🔓</div><div class="flow-label">Public Key Verify</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-icon">✅</div><div class="flow-label">Authenticated</div></div>
+    </div>
+  </div>
+
+  <!-- SOURCE CODE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <span class="section-title">Source Code — digital_signature.py</span>
+    </div>
+    <div class="code-wrap">
+      <div class="code-header">
+        <div class="code-dots"><div class="code-dot cd1"></div><div class="code-dot cd2"></div><div class="code-dot cd3"></div></div>
+        <span class="code-lang">Python 3.x</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre id="code1"><span class="cm"># ============================================================
+# ALA 1 – Digital Signature Verifier
+# Course: Information Security | GMIU
+# ============================================================</span>
+
+<span class="kw">from</span> <span class="imp">cryptography.hazmat.primitives.asymmetric</span> <span class="kw">import</span> rsa, padding
+<span class="kw">from</span> <span class="imp">cryptography.hazmat.primitives</span> <span class="kw">import</span> hashes, serialization
+<span class="kw">from</span> <span class="imp">cryptography.exceptions</span> <span class="kw">import</span> InvalidSignature
+<span class="kw">import</span> <span class="imp">base64</span>
+
+
+<span class="cm"># ── Step 1: Generate RSA Key Pair ──────────────────────────</span>
+<span class="kw">def</span> <span class="fn">generate_key_pair</span>():
+    <span class="st">"""Generate a 2048-bit RSA private/public key pair."""</span>
+    private_key = rsa.generate_private_key(
+        public_exponent=<span class="nu">65537</span>,
+        key_size=<span class="nu">2048</span>
+    )
+    public_key = private_key.public_key()
+    <span class="kw">return</span> private_key, public_key
+
+
+<span class="cm"># ── Step 2: Sign a Message ─────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">sign_message</span>(private_key, message: str) -> bytes:
+    <span class="st">"""Sign a message using RSA-PSS with SHA-256 hashing."""</span>
+    signature = private_key.sign(
+        message.encode(<span class="st">'utf-8'</span>),
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+    <span class="kw">return</span> signature
+
+
+<span class="cm"># ── Step 3: Verify the Signature ───────────────────────────</span>
+<span class="kw">def</span> <span class="fn">verify_signature</span>(public_key, message: str, signature: bytes) -> bool:
+    <span class="st">"""Verify a digital signature using the public key."""</span>
+    <span class="kw">try</span>:
+        public_key.verify(
+            signature,
+            message.encode(<span class="st">'utf-8'</span>),
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        <span class="kw">return</span> <span class="nu">True</span>
+    <span class="kw">except</span> <span class="cl">InvalidSignature</span>:
+        <span class="kw">return</span> <span class="nu">False</span>
+
+
+<span class="cm"># ── Step 4: Export Keys (PEM Format) ───────────────────────</span>
+<span class="kw">def</span> <span class="fn">export_keys</span>(private_key, public_key):
+    priv_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    pub_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    <span class="kw">return</span> priv_pem.decode(), pub_pem.decode()
+
+
+<span class="cm"># ── Main Program ───────────────────────────────────────────</span>
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    print(<span class="st">"=" * 55</span>)
+    print(<span class="st">"  ALA 1 — Digital Signature Verifier"</span>)
+    print(<span class="st">"=" * 55</span>)
+
+    <span class="cm"># Generate keys</span>
+    private_key, public_key = <span class="fn">generate_key_pair</span>()
+    priv_pem, pub_pem = <span class="fn">export_keys</span>(private_key, public_key)
+    print(<span class="st">"\n[+] RSA 2048-bit Key Pair Generated Successfully"</span>)
+    print(<span class="st">"\nPublic Key (PEM):\n"</span>, pub_pem[:90], <span class="st">"..."</span>)
+
+    <span class="cm"># Sign message</span>
+    message = <span class="st">"Hello, this message is signed by GMIU Student!"</span>
+    signature = <span class="fn">sign_message</span>(private_key, message)
+    sig_b64 = base64.b64encode(signature).decode()
+
+    print(<span class="st">f"\n[+] Message : {message}"</span>)
+    print(<span class="st">f"[+] Signature (b64): {sig_b64[:64]}..."</span>)
+
+    <span class="cm"># Verify valid signature</span>
+    result = <span class="fn">verify_signature</span>(public_key, message, signature)
+    print(<span class="st">f"\n[✓] Signature Valid  : {result}"</span>)
+
+    <span class="cm"># Tamper with message and verify again</span>
+    tampered = message + <span class="st">" [TAMPERED]"</span>
+    tampered_result = <span class="fn">verify_signature</span>(public_key, tampered, signature)
+    print(<span class="st">f"[✗] Tampered Msg Valid: {tampered_result}"</span>)
+    print(<span class="st">"\n[!] Data Integrity Confirmed — Tampering Detected!"</span>)
+    print(<span class="st">"=" * 55</span>)</pre>
+    </div>
+  </div>
+
+  <!-- EXPECTED OUTPUT -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <span class="section-title">Expected Terminal Output</span>
+    </div>
+    <div class="output-box">
+<span class="out-label">=======================================================</span><br>
+<span class="out-label">  ALA 1 — Digital Signature Verifier</span><br>
+<span class="out-label">=======================================================</span><br><br>
+<span class="out-success">[+] RSA 2048-bit Key Pair Generated Successfully</span><br><br>
+<span class="out-label">Public Key (PEM):</span><br>
+<span class="out-key">-----BEGIN PUBLIC KEY-----</span><br>
+<span class="out-key">MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...</span><br><br>
+<span class="out-success">[+] Message  : Hello, this message is signed by GMIU Student!</span><br>
+<span class="out-label">[+] Signature (b64): </span><span class="out-sig">T3BlblNTSCBpcyBhd2Vzb21lIGZvciBj...</span><br><br>
+<span class="out-success">[✓] Signature Valid  : True</span><br>
+<span class="out-label" style="color:#f43f5e">[✗] Tampered Msg Valid: False</span><br><br>
+<span class="out-success">[!] Data Integrity Confirmed — Tampering Detected!</span>
+    </div>
+  </div>
+
+  <!-- ANALYSIS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <span class="section-title">Analysis & Key Concepts</span>
+    </div>
+    <div class="analysis-grid">
+      <div class="ana-card"><span class="ana-icon">🔑</span><h4>Asymmetric Keys</h4><p>RSA uses a mathematically linked key pair. The private key signs; the public key verifies. The private key cannot be derived from the public key.</p></div>
+      <div class="ana-card"><span class="ana-icon">🔐</span><h4>SHA-256 Hashing</h4><p>The message is first hashed with SHA-256 to produce a fixed-length digest, then the digest is signed — not the full message — for efficiency and security.</p></div>
+      <div class="ana-card"><span class="ana-icon">✅</span><h4>Non-Repudiation</h4><p>Only the holder of the private key could have produced the signature. This property proves authorship and prevents the signer from denying the signed message.</p></div>
+      <div class="ana-card"><span class="ana-icon">🛡️</span><h4>Integrity</h4><p>Any change to the message — even a single character — causes signature verification to fail, immediately revealing tampering.</p></div>
+      <div class="ana-card"><span class="ana-icon">📋</span><h4>PSS Padding</h4><p>Probabilistic Signature Scheme (PSS) adds randomness to each signature, making it resistant to chosen-message attacks unlike deterministic PKCS#1 v1.5.</p></div>
+      <div class="ana-card"><span class="ana-icon">🌐</span><h4>Real-World Use</h4><p>Digital signatures are used in SSL/TLS certificates, code signing, email (PGP/S-MIME), PDF signing, and blockchain transaction verification.</p></div>
+    </div>
+  </div>
+
+  <!-- INSTALLATION -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <span class="section-title">Setup & Installation</span>
+    </div>
+    <div class="info-grid">
+      <div class="info-card">
+        <h4>📦 Install Dependencies</h4>
+        <div class="output-box" style="margin-top:8px; padding:14px 18px; font-size:0.76rem;">
+          pip install cryptography
+        </div>
+      </div>
+      <div class="info-card">
+        <h4>▶ Run the Script</h4>
+        <div class="output-box" style="margin-top:8px; padding:14px 18px; font-size:0.76rem;">
+          python digital_signature.py
+        </div>
+      </div>
+      <div class="info-card">
+        <h4>✅ Requirements</h4>
+        <ul>
+          <li>Python 3.7+</li>
+          <li>cryptography library v38+</li>
+          <li>No internet connection needed</li>
+          <li>Works on Windows, macOS, Linux</li>
+        </ul>
+      </div>
+      <div class="info-card">
+        <h4>📁 Files to Submit</h4>
+        <ul>
+          <li>digital_signature.py</li>
+          <li>Screenshot of terminal output</li>
+          <li>Analysis report (PDF)</li>
+          <li>Upload to GMIU Portal</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+function copyCode(btn) {
+  const pre = document.getElementById('code1');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.textContent = 'Copied!';
+    btn.style.color = '#10b981';
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; }, 2000);
+  });
+}
+</script>
+</body>
+</html>

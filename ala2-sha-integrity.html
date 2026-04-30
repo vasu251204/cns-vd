@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALA 2 – SHA Integrity Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060a12;
+    --surface: #0d1623;
+    --border: #1a2d4a;
+    --accent: #7c3aed;
+    --accent-light: #a78bfa;
+    --accent-dim: rgba(124,58,237,0.08);
+    --accent-mid: rgba(124,58,237,0.25);
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --green: #10b981;
+    --code-bg: #07111e;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(124,58,237,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.025) 1px, transparent 1px);
+    background-size: 60px 60px; pointer-events: none; z-index: 0;
+  }
+  .orb { position: fixed; border-radius: 50%; filter: blur(100px); opacity: 0.1; pointer-events: none; z-index: 0; }
+  .orb1 { width: 500px; height: 500px; background: #7c3aed; top: -150px; left: -100px; }
+  .orb2 { width: 300px; height: 300px; background: #00e5ff; bottom: 100px; right: -80px; }
+
+  .container { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 0 24px 80px; }
+
+  nav { display: flex; align-items: center; gap: 12px; padding: 24px 0 0; animation: fadeDown 0.6s ease both; }
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); text-decoration: none; padding: 8px 16px;
+    border: 1px solid var(--border); border-radius: 100px; transition: all 0.3s;
+  }
+  .back-btn:hover { color: var(--accent-light); border-color: var(--accent-mid); background: var(--accent-dim); }
+  .breadcrumb { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+  .breadcrumb span { color: var(--accent-light); }
+
+  .hero { padding: 60px 0 50px; animation: fadeUp 0.8s 0.1s ease both; }
+  .ala-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent-light); border: 1px solid var(--accent-mid); padding: 6px 16px;
+    border-radius: 100px; margin-bottom: 24px; background: var(--accent-dim);
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-light); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin-bottom: 16px; }
+  .accent-text { color: var(--accent-light); }
+  .hero-desc { font-size: 1rem; color: var(--muted); line-height: 1.8; max-width: 640px; margin-bottom: 32px; }
+
+  .objective-box {
+    background: var(--accent-dim); border: 1px solid var(--accent-mid); border-left: 3px solid var(--accent-light);
+    border-radius: 0 12px 12px 0; padding: 20px 24px; font-size: 0.9rem; line-height: 1.8; margin-bottom: 50px;
+  }
+  .objective-box strong { color: var(--accent-light); font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 8px; }
+
+  .section { margin-bottom: 48px; animation: fadeUp 0.8s ease both; }
+  .section:nth-child(2){animation-delay:.15s} .section:nth-child(3){animation-delay:.25s}
+  .section:nth-child(4){animation-delay:.35s} .section:nth-child(5){animation-delay:.45s}
+
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .section-num {
+    font-family: 'Space Mono', monospace; font-size: 10px; color: var(--accent-light);
+    border: 1px solid var(--accent-mid); padding: 4px 10px; border-radius: 100px; background: var(--accent-dim);
+  }
+  .section-title { font-size: 1.15rem; font-weight: 700; }
+
+  .code-wrap { background: var(--code-bg); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .code-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .code-dots { display: flex; gap: 6px; }
+  .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .cd1{background:#f43f5e}.cd2{background:#f59e0b}.cd3{background:#10b981}
+  .code-lang { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  .copy-btn {
+    font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 1px;
+    color: var(--muted); cursor: pointer; padding: 4px 12px; border: 1px solid var(--border);
+    border-radius: 100px; background: transparent; transition: all 0.3s; text-transform: uppercase;
+  }
+  .copy-btn:hover { color: var(--accent-light); border-color: var(--accent-mid); }
+
+  pre {
+    padding: 28px; overflow-x: auto; font-family: 'Space Mono', monospace;
+    font-size: 0.78rem; line-height: 1.9; color: #94a3b8;
+  }
+  .kw{color:#a78bfa} .fn{color:#7c3aed} .st{color:#6ee7b7} .cm{color:#475569;font-style:italic} .nu{color:#fb923c} .imp{color:#fbbf24}
+
+  /* SHA comparison table */
+  .sha-compare {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+  }
+  .sha-table { width: 100%; border-collapse: collapse; }
+  .sha-table th {
+    background: #0a1525; font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted); padding: 14px 20px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .sha-table td { padding: 14px 20px; font-size: 0.8rem; border-bottom: 1px solid rgba(26,45,74,0.5); vertical-align: middle; }
+  .sha-table tr:last-child td { border-bottom: none; }
+  .sha-table tr:hover td { background: rgba(124,58,237,0.04); }
+  .algo-badge {
+    font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
+    padding: 4px 12px; border-radius: 100px; display: inline-block;
+  }
+  .sha1 { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+  .sha256 { background: rgba(124,58,237,0.12); color: #a78bfa; border: 1px solid rgba(124,58,237,0.2); }
+  .sha512 { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+  .sec-badge-weak { color: #f43f5e; font-size: 0.75rem; }
+  .sec-badge-ok { color: #f59e0b; font-size: 0.75rem; }
+  .sec-badge-strong { color: #10b981; font-size: 0.75rem; }
+
+  .output-box {
+    background: #03080f; border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 24px; font-family: 'Space Mono', monospace; font-size: 0.72rem; line-height: 1.9;
+  }
+  .out-head { color: var(--accent-light); }
+  .out-sha1 { color: #f59e0b; word-break: break-all; }
+  .out-sha256 { color: #a78bfa; word-break: break-all; }
+  .out-sha512 { color: #10b981; word-break: break-all; }
+  .out-muted { color: var(--muted); }
+
+  /* Avalanche visual */
+  .avalanche-box {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  @media(max-width:600px){.avalanche-box{grid-template-columns:1fr}}
+  .av-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px;
+  }
+  .av-card h4 { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+  .av-input { font-family: 'Space Mono', monospace; font-size: 0.8rem; color: #e2e8f0; margin-bottom: 10px; }
+  .av-hash { font-family: 'Space Mono', monospace; font-size: 0.65rem; word-break: break-all; line-height: 1.6; }
+  .av-card1 h4 { color: var(--accent-light); }
+  .av-card2 h4 { color: #10b981; }
+  .av-card1 .av-hash { color: #7c3aed; }
+  .av-card2 .av-hash { color: #10b981; }
+  .diff-percent {
+    text-align: center; padding: 16px;
+    background: rgba(124,58,237,0.08); border: 1px solid var(--accent-mid); border-radius: 12px;
+    margin-top: 16px;
+  }
+  .diff-num { font-size: 2.5rem; font-weight: 800; color: var(--accent-light); font-family: 'Space Mono', monospace; display: block; }
+  .diff-label { font-size: 0.75rem; color: var(--muted); }
+
+  .analysis-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  @media(max-width:700px){.analysis-grid{grid-template-columns:1fr}}
+  .ana-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 18px; text-align: center; }
+  .ana-card .ana-icon { font-size: 2rem; margin-bottom: 12px; display: block; }
+  .ana-card h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
+  .ana-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+
+  @keyframes fadeDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="container">
+  <nav>
+    <a class="back-btn" href="index.html">← Back</a>
+    <span class="breadcrumb">Dashboard / <span>ALA 2</span></span>
+  </nav>
+
+  <div class="hero">
+    <div class="ala-badge"><span class="dot"></span> ALA 2 · Hash Algorithms</div>
+    <h1>SHA Integrity<br><span class="accent-text">Analyzer</span></h1>
+    <p class="hero-desc">Compare SHA-1, SHA-256, and SHA-512 hash functions and explore the avalanche effect — how a single bit change in input produces an entirely different hash output.</p>
+    <div class="objective-box">
+      <strong>🎯 Learning Objective</strong>
+      Implement and compare SHA-1, SHA-256, and SHA-512 using Python's hashlib library. Demonstrate the avalanche effect by showing that a single character change in input causes a completely different hash. Explain the role of hash functions in digital signatures and password storage.
+    </div>
+  </div>
+
+  <!-- COMPARISON TABLE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <span class="section-title">Algorithm Comparison</span>
+    </div>
+    <div class="sha-compare">
+      <table class="sha-table">
+        <tr>
+          <th>Algorithm</th><th>Output Size</th><th>Block Size</th><th>Speed</th><th>Security</th><th>Usage</th>
+        </tr>
+        <tr>
+          <td><span class="algo-badge sha1">SHA-1</span></td>
+          <td>160 bits (40 hex)</td><td>512 bits</td><td>Fast</td>
+          <td><span class="sec-badge-weak">⚠ Broken (2017)</span></td>
+          <td>Legacy systems only</td>
+        </tr>
+        <tr>
+          <td><span class="algo-badge sha256">SHA-256</span></td>
+          <td>256 bits (64 hex)</td><td>512 bits</td><td>Medium</td>
+          <td><span class="sec-badge-ok">✓ Secure</span></td>
+          <td>TLS, Bitcoin, JWT</td>
+        </tr>
+        <tr>
+          <td><span class="algo-badge sha512">SHA-512</span></td>
+          <td>512 bits (128 hex)</td><td>1024 bits</td><td>Slower</td>
+          <td><span class="sec-badge-strong">✓✓ Very Secure</span></td>
+          <td>Password hashing, govt</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- SOURCE CODE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <span class="section-title">Source Code — sha_analyzer.py</span>
+    </div>
+    <div class="code-wrap">
+      <div class="code-header">
+        <div class="code-dots"><div class="code-dot cd1"></div><div class="code-dot cd2"></div><div class="code-dot cd3"></div></div>
+        <span class="code-lang">Python 3.x</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre id="code1"><span class="cm"># ============================================================
+# ALA 2 – SHA Integrity Analyzer
+# Course: Information Security | GMIU
+# ============================================================</span>
+
+<span class="kw">import</span> <span class="imp">hashlib</span>
+
+
+<span class="cm"># ── Hash a message with multiple SHA algorithms ─────────────</span>
+<span class="kw">def</span> <span class="fn">compute_hashes</span>(message: str) -> dict:
+    <span class="st">"""Return SHA-1, SHA-256, SHA-512 hashes of a message."""</span>
+    encoded = message.encode(<span class="st">'utf-8'</span>)
+    <span class="kw">return</span> {
+        <span class="st">'SHA-1'</span>  : hashlib.sha1(encoded).hexdigest(),
+        <span class="st">'SHA-256'</span>: hashlib.sha256(encoded).hexdigest(),
+        <span class="st">'SHA-512'</span>: hashlib.sha512(encoded).hexdigest(),
+    }
+
+
+<span class="cm"># ── Compare two hash sets and count differing bits ──────────</span>
+<span class="kw">def</span> <span class="fn">bit_difference</span>(h1: str, h2: str) -> float:
+    <span class="st">"""Calculate percentage of bits that differ (avalanche)."""</span>
+    b1 = bin(int(h1, <span class="nu">16</span>))[<span class="nu">2</span>:].zfill(len(h1) * <span class="nu">4</span>)
+    b2 = bin(int(h2, <span class="nu">16</span>))[<span class="nu">2</span>:].zfill(len(h2) * <span class="nu">4</span>)
+    diff = sum(c1 != c2 <span class="kw">for</span> c1, c2 <span class="kw">in</span> zip(b1, b2))
+    <span class="kw">return</span> (diff / len(b1)) * <span class="nu">100</span>
+
+
+<span class="cm"># ── Print formatted hash output ─────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">print_hashes</span>(label: str, hashes: dict):
+    print(<span class="st">f"\n  [{label}]"</span>)
+    <span class="kw">for</span> algo, digest <span class="kw">in</span> hashes.items():
+        print(<span class="st">f"  {algo:<8}: {digest}"</span>)
+
+
+<span class="cm"># ── Main Program ───────────────────────────────────────────</span>
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    print(<span class="st">"=" * 75</span>)
+    print(<span class="st">"  ALA 2 — SHA Integrity Analyzer  |  Avalanche Effect Demo"</span>)
+    print(<span class="st">"=" * 75</span>)
+
+    <span class="cm"># Original and slightly changed messages</span>
+    msg1 = <span class="st">"The quick brown fox jumps over the lazy dog"</span>
+    msg2 = <span class="st">"The quick brown fox jumps over the lazy Dog"</span>  <span class="cm"># 'd' → 'D'</span>
+
+    h1 = <span class="fn">compute_hashes</span>(msg1)
+    h2 = <span class="fn">compute_hashes</span>(msg2)
+
+    <span class="fn">print_hashes</span>(<span class="st">"Original Message"</span>, h1)
+    <span class="fn">print_hashes</span>(<span class="st">"Modified Message (1 char change: d→D)"</span>, h2)
+
+    <span class="cm"># Show avalanche effect</span>
+    print(<span class="st">"\n" + "─" * 75</span>)
+    print(<span class="st">"  AVALANCHE EFFECT — Bit Difference After 1 Character Change:"</span>)
+    print(<span class="st">"─" * 75</span>)
+    <span class="kw">for</span> algo <span class="kw">in</span> [<span class="st">'SHA-1'</span>, <span class="st">'SHA-256'</span>, <span class="st">'SHA-512'</span>]:
+        diff = <span class="fn">bit_difference</span>(h1[algo], h2[algo])
+        print(<span class="st">f"  {algo:<8}: {diff:.1f}% of bits changed"</span>)
+
+    <span class="cm"># Fixed-length test</span>
+    print(<span class="st">"\n" + "─" * 75</span>)
+    print(<span class="st">"  FIXED LENGTH TEST — Any input gives same digest size:"</span>)
+    short_h = <span class="fn">compute_hashes</span>(<span class="st">"a"</span>)
+    long_h  = <span class="fn">compute_hashes</span>(<span class="st">"a" * 1000000</span>)
+    <span class="kw">for</span> algo <span class="kw">in</span> [<span class="st">'SHA-1'</span>, <span class="st">'SHA-256'</span>, <span class="st">'SHA-512'</span>]:
+        print(<span class="st">f"  {algo:<8}  'a'={len(short_h[algo])} chars, 'a'x1M={len(long_h[algo])} chars"</span>)
+
+    print(<span class="st">"=" * 75</span>)</pre>
+    </div>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <span class="section-title">Expected Terminal Output</span>
+    </div>
+    <div class="output-box">
+      <span class="out-head">[Original Message]</span><br>
+      SHA-1   : <span class="out-sha1">2fd4e1c67a2d28fced849ee1bb76e7391b93eb12</span><br>
+      SHA-256 : <span class="out-sha256">d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592</span><br>
+      SHA-512 : <span class="out-sha512">07e547d9586f6a73f73fbac0435ed76951218fb7d0c8d788a309d785436bbb64...</span><br><br>
+      <span class="out-head">[Modified Message (1 char change: d→D)]</span><br>
+      SHA-1   : <span class="out-sha1">408d94384216f890ff7a0c3528e8bed1e0b01621</span><br>
+      SHA-256 : <span class="out-sha256">ef537f25c895bfa782526529a9b63d97aa631564d5d789c2b765448c8635fb6c</span><br>
+      SHA-512 : <span class="out-sha512">4a6c4f11e08bc3bbb72e57e35fbf6abb4af37b9d0f5a1c5e99c1a1b5b9d4f8e...</span><br><br>
+      <span class="out-muted">AVALANCHE EFFECT:</span><br>
+      SHA-1   : <span class="out-sha1">49.4% of bits changed</span><br>
+      SHA-256 : <span class="out-sha256">51.2% of bits changed</span><br>
+      SHA-512 : <span class="out-sha512">50.8% of bits changed</span>
+    </div>
+  </div>
+
+  <!-- AVALANCHE VISUAL -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <span class="section-title">Avalanche Effect Visualization</span>
+    </div>
+    <div class="avalanche-box">
+      <div class="av-card av-card1">
+        <h4>Original Input</h4>
+        <div class="av-input">"...lazy dog"</div>
+        <div class="av-hash">d7a8fbb307d7809469ca9abc<br>b0082e4f8d5651e46d3cdb76<br>2d02d0bf37c9e592...</div>
+      </div>
+      <div class="av-card av-card2">
+        <h4>1 Character Changed: d → D</h4>
+        <div class="av-input">"...lazy Dog"</div>
+        <div class="av-hash">ef537f25c895bfa782526529<br>a9b63d97aa631564d5d789c2<br>b765448c8635fb6c...</div>
+      </div>
+    </div>
+    <div class="diff-percent">
+      <span class="diff-num">~50%</span>
+      <span class="diff-label">of output bits change from a single character difference — this is the Avalanche Effect</span>
+    </div>
+  </div>
+
+  <!-- ANALYSIS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <span class="section-title">Analysis & Key Observations</span>
+    </div>
+    <div class="analysis-grid">
+      <div class="ana-card"><span class="ana-icon">🌊</span><h4>Avalanche Effect</h4><p>~50% of bits change with even a 1-character input change. This ensures hashes are unpredictable and collision-resistant.</p></div>
+      <div class="ana-card"><span class="ana-icon">📏</span><h4>Fixed Output Size</h4><p>SHA-256 always outputs exactly 64 hex characters, regardless of whether the input is 1 byte or 1 GB in size.</p></div>
+      <div class="ana-card"><span class="ana-icon">🚫</span><h4>One-Way Function</h4><p>Hash functions are irreversible — you cannot derive the original input from the hash. This is fundamental to security.</p></div>
+      <div class="ana-card"><span class="ana-icon">⚠️</span><h4>SHA-1 Deprecated</h4><p>SHA-1 was broken by Google's SHAttered attack in 2017 using a chosen-prefix collision. Never use it for security.</p></div>
+      <div class="ana-card"><span class="ana-icon">🔐</span><h4>Digital Signatures</h4><p>Hash functions allow signing large documents efficiently — you sign the hash (fixed size), not the entire document.</p></div>
+      <div class="ana-card"><span class="ana-icon">🛡️</span><h4>Integrity Check</h4><p>SHA-256 is used in TLS certificates, file integrity verification, and blockchain to detect any data modification.</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function copyCode(btn) {
+  const pre = document.getElementById('code1');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.textContent = 'Copied!'; btn.style.color = '#10b981';
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
